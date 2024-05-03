@@ -7,12 +7,12 @@
 
 class instruct {
     public:
+        std::string name;
+        void (Cpu::*addr_mode)();
+        void (Cpu::*operation)();
+        uint8_t cycles;
+        uint8_t bytes;
         instruct(std::string name, void (Cpu::*operation)(), void (Cpu::*addr_mode)(), uint8_t bytes, uint8_t cycles);
-        std::string name = name;
-        void (Cpu::*addr_mode)() = addr_mode;
-        void (Cpu::*operation)() = operation;
-        uint8_t cycles = cycles;
-        uint8_t bytes = bytes;
 };
 
 using c = Cpu;

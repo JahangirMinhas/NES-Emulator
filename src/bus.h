@@ -4,11 +4,16 @@
 #include <cstdint>
 #include "cpu.h"
 
-class Bus {
+class Cpu;
+
+class Bus
+{
     public:
-        Cpu cpu = Cpu(this);
+        Bus();
+        Cpu* cpu;
         uint8_t ram[64 * 1024];
         uint8_t read(uint16_t addr);
         void write(uint8_t data, uint16_t addr);
 };
+
 #endif

@@ -1,9 +1,42 @@
 #include "cpu.h"
 #include "instruct.h"
 
-Cpu::Cpu(Bus *bus){
+instruct::instruct(std::string name, void (Cpu::*operation)(), void (Cpu::*addr_mode)(), uint8_t bytes, uint8_t cycles){
+    this->name = name;
+    this->addr_mode = addr_mode;
+    this->operation = operation;
+    this->cycles = cycles;
+    this->bytes = bytes;
+}
+
+Cpu::Cpu(Bus* bus){
     this->bus = bus;
-};
+}
+
+/*
+    Set a cpu flag at pos. Val == True (Set Bit) and Val == False (Clear Bit).
+    Pos:
+        0: Carry
+        1: Zero
+        2: IRQ Interrupt
+        3: Decimal Mode
+        4: BRK Command
+        5: Unused
+        6: Overflow
+        7: Negative
+*/
+void Cpu::setFlag(uint8_t pos, bool val){
+    if(val == true){
+        flags |= (0x01 << pos);
+    }else {
+        flags &= ~(0x01 << pos);
+    }
+}
+
+// Get the bit in flag at pos.
+uint8_t Cpu::getFlag(uint8_t pos){
+    return flags & (0x01 << pos);
+}
 
 // Fetch opcode byte from memory address.
 uint8_t Cpu::fetch_opcode(uint16_t addr){
@@ -16,6 +49,7 @@ void Cpu::cycle(){
         opcode = fetch_opcode(pc);
         pc++;
         instruct lookup = instructions[opcode];
+        cycles = lookup.cycles;
         (this->*lookup.addr_mode)();
         (this->*lookup.operation)();
     }
@@ -45,13 +79,6 @@ void Cpu::ZP_X(){
     low = bus->read(pc);
     pc++;
     operand = bus->read(((uint16_t)(low + x)) & 0x00FF);
-}
-
-// Offset from y register can cause overflow. If result exceeds 255 (0xFF), result will wrap around back into zero page.
-void Cpu::ZP_Y(){
-    low = bus->read(pc);
-    pc++;
-    operand = bus->read(((uint16_t)(low + y)) & 0x00FF);
 }
 
 // Offset from y register can cause overflow. If result exceeds 255 (0xFF), result will wrap around back into zero page.
@@ -143,16 +170,19 @@ void Cpu::IND_X(){
     operand = bus->read(new_addr);
 }
 
-// Low byte from instruction is added with the y register to form an offset into ZP where low byte of target address can be read. The next memory location within ZP
-// contains the high byte of target. Low byte and high byte are combined to form target address where operand can be read.
+// Second byte from instruction is an offset into ZP where low byte of target address can be read. The next memory location within ZP contains the high byte of
+// target. Low byte and high byte are combined and the y register is added to the combined address to form target address where operand can be read.
+// In the case where page boundry is crossed, increment cycles.
 void Cpu::IND_Y(){
     low = bus->read(pc);
     pc++;
-    uint8_t low_target = bus->read((uint16_t)low) + y;
-    new_addr = ((uint16_t)(low + x)) & 0x00FF;
+    new_addr = ((uint16_t)low) & 0x00FF;
     uint8_t low_target = bus->read(new_addr);
     uint8_t high_target = bus->read(new_addr + 1) & 0x00FF;
     new_addr = (uint16_t)((high_target << 8) | low_target);
+    uint8_t start_page = new_addr & 0xFF00;
+    new_addr += y;
+    uint8_t end_page = new_addr & 0xFF00;
+    if (start_page != end_page) cycles++;
     operand = bus->read(new_addr);
 }
-
