@@ -186,3 +186,22 @@ void Cpu::IND_Y(){
     if (start_page != end_page) cycles++;
     operand = bus->read(new_addr);
 }
+
+void Cpu::ADC(){
+    uint16_t add = (uint16_t)acc + (uint16_t)operand + (uint16_t)getFlag(0);
+    setFlag(0, add > 0xFF);
+    setFlag(7, add & 0x80);
+    setFlag(1, (add & 0x00FF) == 0x0000);
+    if((acc & 0x80 == 0) && (operand & 0x80 == 0) && (add & 0x0080 == 1)){
+        setFlag(6, true);
+    }else if((acc & 0x80 == 1) && (operand & 0x80 == 1) && (add & 0x0080 == 0)){
+        setFlag(6, true);
+    }else {
+        setFlag(6, false);
+    }
+    acc = add & 0x00FF;
+}
+
+void Cpu::AND(){
+    acc &= operand;
+}

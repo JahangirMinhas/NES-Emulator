@@ -32,7 +32,6 @@ class Cpu {
         void setFlag(uint8_t pos, bool val);
         uint8_t getFlag(uint8_t pos);
 
-
         uint8_t cycles = 0, opcode, operand, high, low;
         uint16_t new_addr;
 
@@ -53,7 +52,7 @@ class Cpu {
         void RTS(), SBC(), SEC(), SED(), SEI(), STA(), STX(), STY(), TAX(), TAY(), TSX(), TXA(), TXS(), TYA();
 
         // Filler function for empty cell
-        void NAN();
+        void NOP();
 };
 
 #endif
