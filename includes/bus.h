@@ -2,6 +2,10 @@
 #define BUS_H
 
 #include <cstdint>
+#include <iostream>
+#include <cstring>
+#include <string>
+#include <vector>
 #include "cpu.h"
 
 class Cpu;
@@ -12,7 +16,7 @@ class Bus
         Bus();
         Cpu* cpu;
         uint8_t ram[64 * 1024];
-        uint8_t read(uint16_t addr);
+        uint8_t* read(uint16_t addr);
         void write(uint8_t data, uint16_t addr);
 };
 

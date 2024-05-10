@@ -7,39 +7,56 @@
 class Bus;
 
 class Cpu {
-    private:
+    public:
+        Cpu(Bus* bus);
+
         Bus* bus;
 
         // Cpu Registers
-        uint8_t acc; // Accumulator
-        uint8_t x; // X Register
-        uint8_t y; // Y Register
+        uint8_t x = 0; // X Register
+        uint8_t y = 0; // Y Register
+        uint8_t acc = 0; // Accumulator
         uint16_t pc; // Program Counter
-        uint16_t sp; // Stack Pointer
+        uint16_t sp = 0x01FD; // Stack Pointer
 
-        /* 8 bit word representing the flags
+        #define C 0
+        #define Z 1
+        #define I 2
+        #define D 3
+        #define B 4
+        #define U 5
+        #define V 6
+        #define N 7
+        /* 8 bit word representing the flags (Status Register)
              Positions:
                 0: Carry
                 1: Zero
-                2: IRQ Interrupt
+                2: IRQ Disable Interrupt
                 3: Decimal Mode
                 4: BRK Command
-                5: Unused
+                5: Unused (always set)
                 6: Overflow
                 7: Negative
         */
-        uint8_t flags = 0x00;
+        uint8_t sr = 0x00 | 0x01 << U;
+
         void setFlag(uint8_t pos, bool val);
         uint8_t getFlag(uint8_t pos);
 
-        uint8_t cycles = 0, opcode, operand, high, low;
-        uint16_t new_addr;
+        uint8_t cycles = 0, opcode;
+        uint8_t* operand;
+        uint16_t abs_addr;
 
         uint8_t fetch_opcode(uint16_t addr);
-        void cycle();
+        void branch();
 
-    public:
-        Cpu(Bus* bus);
+        void push_stk(uint8_t byte);
+        uint8_t pop_stk();
+
+        void exec_ins();
+        void reset();
+        void irq();
+        void nmi();
 
         // Addressing Modes
         void ACC(), IMM(), ABS(), ABS_X(), ABS_Y(), ZP(), ZP_X();
@@ -50,9 +67,7 @@ class Cpu {
         void CLD(), CLI(), CLV(), CMP(), CPX(), CPY(), DEC(), DEX(), DEY(), EOR(), INC(), INX(), INY(), JMP();
         void JSR(), LDA(), LDX(), LDY(), LSR(), NOP(), ORA(), PHA(), PHP(), PLA(), PLP(), ROL(), ROR(), RTI();
         void RTS(), SBC(), SEC(), SED(), SEI(), STA(), STX(), STY(), TAX(), TAY(), TSX(), TXA(), TXS(), TYA();
-
-        // Filler function for empty cell
-        void NOP();
+        void XXX(); // Illegal Opcode
 };
 
 #endif
