@@ -1,10 +1,9 @@
-#include "bus.h"
+#include "..\includes\bus.h"
 
 Bus* bus;
 
 // Draw CPU Registers
 void draw_reg(){
-    printf(" Cycles Remaining: %d\n", bus->cpu->cycles);
     std::cout << " CPU REGISTERS" << std::endl;
     std::cout << " -------------" << std::endl;
     printf("  ACC: %d\n", bus->cpu->acc);
@@ -17,6 +16,7 @@ void draw_reg(){
         uint8_t bit = (bus->cpu->sr & (1 << i)) ? 1 : 0;
         printf("%d ", bit);
     }
+    printf(" Cycles Remaining: %d", bus->cpu->cycles);
     printf("\n\n\n");
 }
 
@@ -46,7 +46,7 @@ void draw_pg(uint8_t pg){
 }
 
 void draw_state(){
-    printf("\n 6502 EMULATOR\n -------------\n");
+    printf("\n 6502 EMULATOR (FOR DEBUGGING PURPOSES)\n -------------\n");
     printf(" Commands: ");
     printf("\n  S: Step\n  R: Reset\n  Q: Quit\n\n\n");
 
@@ -91,8 +91,10 @@ int main(){
     bus = new Bus();
     bus->write(0x05, 0x0032);
     bus->write(0xFF, 0x00FF);
+    bus->write(0x74, 0x0104);
+    bus->cpu->x = 0x05;
     char* prog = new char[200];
-    std::strcpy(prog, "EE FF 00 E5 32");
+    std::strcpy(prog, "7D FF 00");
     load_prog(prog);
     start();
 }

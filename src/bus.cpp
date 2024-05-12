@@ -1,4 +1,4 @@
-#include "bus.h"
+#include "..\includes\bus.h"
 
 Bus::Bus(){
     cpu = new Cpu(this);

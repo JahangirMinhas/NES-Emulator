@@ -1,5 +1,5 @@
-#include "cpu.h"
-#include "ins.h"
+#include "..\includes\cpu.h"
+#include "..\includes\ins.h"
 
 ins::ins(std::string name, void (Cpu::*operation)(), void (Cpu::*addr_mode)(), uint8_t bytes, uint8_t cycles){
     this->name = name;
@@ -125,23 +125,23 @@ void Cpu::IMM(){
 
 // Read operand from zero page with offset into zero page extracted from second byte of instruction.
 void Cpu::ZP(){
-    uint8_t low = *bus->read(pc);
+    uint8_t offset = *bus->read(pc);
     pc++;
-    operand = bus->read((uint16_t)low);
+    operand = bus->read((uint16_t)offset);
 }
 
 // Offset from x register can cause overflow. If result exceeds 255 (0xFF), result will wrap around back into zero page.
 void Cpu::ZP_X(){
-    uint8_t low = *bus->read(pc);
+    uint8_t offset = *bus->read(pc);
     pc++;
-    operand = bus->read(((uint16_t)(low + x)) & 0x00FF);
+    operand = bus->read(((uint16_t)(offset + x)) & 0x00FF);
 }
 
 // Offset from y register can cause overflow. If result exceeds 255 (0xFF), result will wrap around back into zero page.
 void Cpu::ZP_Y(){
-    uint8_t low = *bus->read(pc);
+    uint8_t offset = *bus->read(pc);
     pc++;
-    operand = bus->read(((uint16_t)(low + y)) & 0x00FF);
+    operand = bus->read(((uint16_t)(offset + y)) & 0x00FF);
 }
 
 // Read operand from 16 bit memory address with low byte from second byte of instruction and high byte from third byte of instruction. 
@@ -162,7 +162,7 @@ void Cpu::ABS_X(){
     pc++;
     abs_addr = (uint16_t)((high << 8) | low);
 
-    if ((abs_addr + (uint16_t)x) & 0xFF00 != abs_addr & 0xFF00) cycles++;
+    if (((abs_addr + x) & 0xFF00) != (abs_addr & 0xFF00)) cycles++;
     abs_addr += x;
     operand = bus->read(abs_addr);
 }
@@ -175,7 +175,7 @@ void Cpu::ABS_Y(){
     pc++;
     abs_addr = (uint16_t)((high << 8) | low);
 
-    if ((abs_addr + (uint16_t)y) & 0xFF00 != abs_addr & 0xFF00) cycles++;
+    if (((abs_addr + y) & 0xFF00) != (abs_addr & 0xFF00)) cycles++;
     abs_addr += y;
     operand = bus->read(abs_addr);
 }
@@ -233,7 +233,7 @@ void Cpu::IND_Y(){
     pc++;
 
     abs_addr = (*bus->read((offset + 1) & 0x00FF) << 8) | *bus->read(offset & 0x00FF);
-    if ((abs_addr + (uint16_t)y) & 0xFF00 != abs_addr & 0xFF00) cycles++;
+    if (((abs_addr + (uint16_t)y) & 0xFF00) != (abs_addr & 0xFF00)) cycles++;
 
     abs_addr += y;
     operand = bus->read(abs_addr);
