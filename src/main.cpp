@@ -1,22 +1,22 @@
-#include "..\includes\bus.h"
+#include "..\includes\m_bus.h"
 
-Bus* bus;
+MBus* m_bus;
 
 // Draw CPU Registers
 void draw_reg(){
     std::cout << " CPU REGISTERS" << std::endl;
     std::cout << " -------------" << std::endl;
-    printf("  ACC: %d\n", bus->cpu->acc);
-    printf("  X: %d\n", bus->cpu->x);
-    printf("  Y: %d\n\n", bus->cpu->y);
-    printf("  PC: %04X\n", bus->cpu->pc);
-    printf("  SP: %04X\n\n", bus->cpu->sp);
+    printf("  ACC: %d\n", m_bus->cpu->getAcc());
+    printf("  X: %d\n", m_bus->cpu->getX());
+    printf("  Y: %d\n\n", m_bus->cpu->getY());
+    printf("  PC: %04X\n", m_bus->cpu->getPc());
+    printf("  SP: %04X\n\n", m_bus->cpu->getSp());
     printf("  N V - B D I Z C\n  ");
     for (int i = 7; i >= 0; i--) {
-        uint8_t bit = (bus->cpu->sr & (1 << i)) ? 1 : 0;
+        uint8_t bit = (m_bus->cpu->getSr() & (1 << i)) ? 1 : 0;
         printf("%d ", bit);
     }
-    printf(" Cycles Remaining: %d", bus->cpu->cycles);
+    printf(" Cycles Remaining: %d", m_bus->cpu->get_cyc());
     printf("\n\n\n");
 }
 
@@ -36,7 +36,7 @@ void draw_pg(uint8_t pg){
 
     // Print every byte in pg with row header
     for (uint16_t addr = pg << 8; addr <= (uint16_t)(pg << 8) + 0xFF; addr++){
-        uint8_t byte = *bus->read(addr);
+        uint8_t byte = *m_bus->read(addr);
         printf("%02X ", byte);
         if((uint8_t)(addr & 0xF) == 0xF && (uint8_t)(addr & 0xFF) != 0xFF){
             printf("\n%01X ", row);
@@ -67,7 +67,7 @@ void start(){
         char in = std::cin.get();
         switch(in){
             case 's':
-                bus->cpu->exec_ins();
+                m_bus->cpu->exec_ins();
                 draw_state();
                 break;
             case 'q':
@@ -78,23 +78,23 @@ void start(){
 
 void load_prog(char* prog){
     char *ptr = strtok (prog, " ");
-    bus->cpu->pc = 0x8000;
+    m_bus->cpu->setPc(0x8000);
     uint16_t addr = 0x8000;
     while (ptr != NULL) {
-        bus->write(std::stoul(ptr, nullptr, 16), addr);
+        m_bus->write(std::stoul(ptr, nullptr, 16), addr);
         ptr = strtok(NULL, " ");
         addr++;
     }
 }
 
 int main(){
-    bus = new Bus();
-    bus->write(0x05, 0x0032);
-    bus->write(0xFF, 0x00FF);
-    bus->write(0x74, 0x0104);
-    bus->cpu->x = 0x05;
+    m_bus = new MBus();
+    m_bus->write(0x05, 0x0032);
+    m_bus->write(0xFF, 0x00FF);
+    m_bus->write(0x74, 0x0104);
     char* prog = new char[200];
     std::strcpy(prog, "7D FF 00");
     load_prog(prog);
     start();
+    return 0;
 }

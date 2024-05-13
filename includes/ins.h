@@ -5,6 +5,7 @@
 #include <string>
 #include "cpu.h"
 
+// Represent an instruction
 class ins {
     public:
         std::string name;
@@ -15,6 +16,7 @@ class ins {
         ins(std::string name, void (Cpu::*operation)(), void (Cpu::*addr_mode)(), uint8_t bytes, uint8_t cycles);
 };
 
+// The 16x16 opcode table
 using c = Cpu;
 ins instructions[256] = {
     // Row 0

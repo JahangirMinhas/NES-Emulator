@@ -1,6 +1,7 @@
 #include "..\includes\cpu.h"
 #include "..\includes\ins.h"
 
+// Construct an instruction
 ins::ins(std::string name, void (Cpu::*operation)(), void (Cpu::*addr_mode)(), uint8_t bytes, uint8_t cycles){
     this->name = name;
     this->addr_mode = addr_mode;
@@ -9,22 +10,27 @@ ins::ins(std::string name, void (Cpu::*operation)(), void (Cpu::*addr_mode)(), u
     this->bytes = bytes;
 }
 
-Cpu::Cpu(Bus* bus){
-    this->bus = bus;
+// Connect CPU to Main Bus
+Cpu::Cpu(MBus* m_bus){
+    this->m_bus = m_bus;
 }
 
-/*
-    Set a cpu flag at pos. Val == True (Set Bit) and Val == False (Clear Bit).
-    Pos:
-        0: Carry
-        1: Zero
-        2: IRQ Interrupt
-        3: Decimal Mode
-        4: BRK Command
-        5: Unused
-        6: Overflow
-        7: Negative
-*/
+// Read from Main Bus
+uint8_t* Cpu::read(uint16_t addr){
+    return m_bus->read(addr);
+}
+
+// Write to Main Bus
+void Cpu::write(uint8_t data, uint16_t addr){
+    m_bus->write(data, addr);
+}
+
+// Fetch opcode byte from memory address
+uint8_t Cpu::fetch_opcode(uint16_t addr){
+    return *read(addr);
+}
+
+// Set or unset the flag at pos
 void Cpu::setFlag(uint8_t pos, bool val){
     if(val == true){
         sr |= (0x01 << pos);
@@ -33,27 +39,75 @@ void Cpu::setFlag(uint8_t pos, bool val){
     }
 }
 
-// Get the bit in flag at pos.
+// Get the bit in flag at pos
 uint8_t Cpu::getFlag(uint8_t pos){
     return sr & (0x01 << pos);
 }
 
-// Fetch opcode byte from memory address.
-uint8_t Cpu::fetch_opcode(uint16_t addr){
-    return *bus->read(addr);
+// Set the Program Counter
+void Cpu::setPc(uint16_t n_pc){
+    pc = n_pc;
 }
 
+// Get the Program Counter
+uint16_t Cpu::getPc(){
+    return pc;
+}
+
+// Get the Program Counter
+uint16_t Cpu::getSp(){
+    return sp;
+}
+
+// Get the x register.
+uint8_t Cpu::getX(){
+    return x;
+}
+
+// Get the x register.
+uint8_t Cpu::getY(){
+    return y;
+}
+
+// Get the x register.
+uint8_t Cpu::getAcc(){
+    return acc;
+}
+
+// Get the status register.
+uint8_t Cpu::getSr(){
+    return sr;
+}
+
+// Get the status register.
+uint8_t Cpu::get_cyc(){
+    return cycles;
+}
+
+// Push a byte to the CPU stack
+void Cpu::push_stk(uint8_t byte){
+    write(byte, sp);
+    sp--;
+}
+
+// Pop a byte from CPU stack
+uint8_t Cpu::pop_stk(){
+    sp++;
+    return *read(sp);
+}
+
+// Branch to 16 bit address defined from REL addr mode
 void Cpu::branch(){
     cycles++;
-    if(abs_addr & 0xFF00 != pc & 0xFF00){
+    if((abs_addr & 0xFF00) != (pc & 0xFF00)){
         cycles ++;
     }
     pc = abs_addr;
 }
 
+// Reset the CPU state, including all registers. Set pc to reset vector at $FFFC and $FFFD
 void Cpu::reset(){
-    // Reset registers
-    pc = ((uint16_t)*bus->read(0xFFFD) << 8) | (uint16_t)*bus->read(0xFFFC);
+    pc = ((uint16_t)*read(0xFFFD) << 8) | (uint16_t)*read(0xFFFC);
     acc = 0x00;
     x = 0x00;
     y = 0x00;
@@ -63,6 +117,7 @@ void Cpu::reset(){
     cycles = 8;
 }
 
+// Handles an IRQ interrupt
 void Cpu::irq(){
     push_stk((uint8_t)(pc & 0xFF00));
     push_stk((uint8_t)(pc & 0x00FF));
@@ -71,11 +126,12 @@ void Cpu::irq(){
     setFlag(B, false);
     push_stk(sr);
 
-    pc = ((uint16_t)*bus->read(0xFFFF) << 8) | (uint16_t)*bus->read(0xFFFE);
+    pc = ((uint16_t)*read(0xFFFF) << 8) | (uint16_t)*read(0xFFFE);
 
     cycles = 7;
 }
 
+// Handles an NMI Interrupt
 void Cpu::nmi(){
     push_stk((uint8_t)(pc & 0xFF00));
     push_stk((uint8_t)(pc & 0x00FF));
@@ -84,19 +140,9 @@ void Cpu::nmi(){
     setFlag(B, false);
     push_stk(sr);
 
-    pc = ((uint16_t)*bus->read(0xFFFB) << 8) | (uint16_t)*bus->read(0xFFFA);
+    pc = ((uint16_t)*read(0xFFFB) << 8) | (uint16_t)*read(0xFFFA);
 
     cycles = 8;
-}
-
-void Cpu::push_stk(uint8_t byte){
-    bus->write(byte, sp);
-    sp--;
-}
-
-uint8_t Cpu::pop_stk(){
-    sp++;
-    return *bus->read(sp);
 }
 
 // Fetches an opcode and executes a single instruction.
@@ -119,65 +165,65 @@ void Cpu::ACC(){
 
 // Read operand from second byte of instruction.
 void Cpu::IMM(){
-    operand = bus->read(pc);
+    operand = read(pc);
     pc++;
 }
 
 // Read operand from zero page with offset into zero page extracted from second byte of instruction.
 void Cpu::ZP(){
-    uint8_t offset = *bus->read(pc);
+    uint8_t offset = *read(pc);
     pc++;
-    operand = bus->read((uint16_t)offset);
+    operand = read((uint16_t)offset);
 }
 
 // Offset from x register can cause overflow. If result exceeds 255 (0xFF), result will wrap around back into zero page.
 void Cpu::ZP_X(){
-    uint8_t offset = *bus->read(pc);
+    uint8_t offset = *read(pc);
     pc++;
-    operand = bus->read(((uint16_t)(offset + x)) & 0x00FF);
+    operand = read(((uint16_t)(offset + x)) & 0x00FF);
 }
 
 // Offset from y register can cause overflow. If result exceeds 255 (0xFF), result will wrap around back into zero page.
 void Cpu::ZP_Y(){
-    uint8_t offset = *bus->read(pc);
+    uint8_t offset = *read(pc);
     pc++;
-    operand = bus->read(((uint16_t)(offset + y)) & 0x00FF);
+    operand = read(((uint16_t)(offset + y)) & 0x00FF);
 }
 
 // Read operand from 16 bit memory address with low byte from second byte of instruction and high byte from third byte of instruction. 
 void Cpu::ABS(){
-    uint8_t low = *bus->read(pc);
+    uint8_t low = *read(pc);
     pc++;
-    uint8_t high = *bus->read(pc);
+    uint8_t high = *read(pc);
     pc++;
     abs_addr = (uint16_t)((high << 8) | low);
-    operand = bus->read(abs_addr);
+    operand = read(abs_addr);
 }
 
 // Read operand using absolute addressing with offset from register x. In the case where page boundry is crossed, increment cycles.
 void Cpu::ABS_X(){
-    uint8_t low = *bus->read(pc);
+    uint8_t low = *read(pc);
     pc++;
-    uint8_t high = *bus->read(pc);
+    uint8_t high = *read(pc);
     pc++;
     abs_addr = (uint16_t)((high << 8) | low);
 
     if (((abs_addr + x) & 0xFF00) != (abs_addr & 0xFF00)) cycles++;
     abs_addr += x;
-    operand = bus->read(abs_addr);
+    operand = read(abs_addr);
 }
 
 // Read operand using absolute addressing with offset from register y. In the case where page boundry is crossed, increment cycles.
 void Cpu::ABS_Y(){
-    uint8_t low = *bus->read(pc);
+    uint8_t low = *read(pc);
     pc++;
-    uint8_t high = *bus->read(pc);
+    uint8_t high = *read(pc);
     pc++;
     abs_addr = (uint16_t)((high << 8) | low);
 
     if (((abs_addr + y) & 0xFF00) != (abs_addr & 0xFF00)) cycles++;
     abs_addr += y;
-    operand = bus->read(abs_addr);
+    operand = read(abs_addr);
 }
 
 // No additional data needs to be read with implied addressing as only operation needs to be executed.
@@ -188,7 +234,7 @@ void Cpu::IMP(){
 // The signed offset value is first read at pc which tells us how far forward/backward (-128 or 127) we require to jump in memory. The target address is found by
 // combining the pc register and offset.
 void Cpu::REL(){
-    int16_t offset = (uint16_t)*bus->read(pc);
+    int16_t offset = (uint16_t)*read(pc);
     pc++;
     if(offset & 0x80){
         offset |= 0xFF00;
@@ -199,44 +245,44 @@ void Cpu::REL(){
 // Follow absolute addressing by getting low and high byte from instruction. This forms a memory location where low byte of taget address is. Next memory location after that
 // contains high byte of target. Combine to get complete 16bit target memory address where operand can be read.
 void Cpu::IND(){
-    uint8_t low = *bus->read(pc);
+    uint8_t low = *read(pc);
     pc++;
-    uint8_t high = *bus->read(pc);
+    uint8_t high = *read(pc);
     pc++;
     uint16_t addr = (uint16_t)((high << 8) | low);
 
     if(addr == 0x00FF){
-        abs_addr = (*bus->read(addr & 0xFF00) << 8) | *bus->read(addr);
+        abs_addr = (*read(addr & 0xFF00) << 8) | *read(addr);
     }else{
-        abs_addr = (*bus->read(addr + 1) << 8) | *bus->read(addr);
+        abs_addr = (*read(addr + 1) << 8) | *read(addr);
     }
 
-    operand = bus->read(abs_addr);
+    operand = read(abs_addr);
 }
 
 // Second byte from instruction is added with the x register to form an offset into ZP where low byte of target address can be read. The next memory location within ZP
 // contains the high byte of target. Low byte and high byte are combined to form target address where operand can be read.
 void Cpu::IND_X(){
-    uint8_t offset = *bus->read(pc);
+    uint8_t offset = *read(pc);
     pc++;
     uint16_t addr = ((uint16_t)(offset + x)) & 0x00FF;
 
-    abs_addr = (*bus->read(addr + 1) << 8) | *bus->read(addr);
-    operand = bus->read(abs_addr);
+    abs_addr = (*read(addr + 1) << 8) | *read(addr);
+    operand = read(abs_addr);
 }
 
 // Second byte from instruction is an offset into ZP where low byte of target address can be read. The next memory location within ZP contains the high byte of
 // target. Low byte and high byte are combined and the y register is added to the combined address to form target address where operand can be read.
 // In the case where page boundry is crossed, increment cycles.
 void Cpu::IND_Y(){
-    uint8_t offset = *bus->read(pc);
+    uint8_t offset = *read(pc);
     pc++;
 
-    abs_addr = (*bus->read((offset + 1) & 0x00FF) << 8) | *bus->read(offset & 0x00FF);
+    abs_addr = (*read((offset + 1) & 0x00FF) << 8) | *read(offset & 0x00FF);
     if (((abs_addr + (uint16_t)y) & 0xFF00) != (abs_addr & 0xFF00)) cycles++;
 
     abs_addr += y;
-    operand = bus->read(abs_addr);
+    operand = read(abs_addr);
 }
 
 void Cpu::ADC(){
@@ -244,9 +290,9 @@ void Cpu::ADC(){
     setFlag(C, tmp > 0xFF);
     setFlag(N, tmp & 0x80);
     setFlag(Z, (tmp & 0x00FF) == 0x0000);
-    if((acc & 0x80 == 0) && ((*operand) & 0x80 == 0) && (tmp & 0x0080 == 1)){
+    if(((acc & 0x80) == 0) && ((*operand & 0x80) == 0) && ((tmp & 0x0080) == 1)){
         setFlag(V, true);
-    }else if((acc & 0x80 == 1) && ((*operand) & 0x80 == 1) && (tmp & 0x0080 == 0)){
+    }else if(((acc & 0x80) == 1) && ((*operand & 0x80) == 1) && ((tmp & 0x0080) == 0)){
         setFlag(V, true);
     }else {
         setFlag(V, false);
@@ -261,7 +307,7 @@ void Cpu::AND(){
 }
 
 void Cpu::ASL(){
-    (*operand) << 1;
+    *operand = *operand << 1;
     setFlag(Z, (*operand) == 0x00);
     setFlag(N, (*operand) == 0x80);
 }
@@ -320,7 +366,7 @@ void Cpu::BRK(){
     push_stk(sr);
     setFlag(I, false);
 
-    pc = (uint16_t)*bus->read(0xFFFE) | ((uint16_t)*bus->read(0xFFFF) << 8);
+    pc = (uint16_t)*read(0xFFFE) | ((uint16_t)*read(0xFFFF) << 8);
 }
 
 void Cpu::BVC(){
@@ -441,7 +487,7 @@ void Cpu::LDY(){
 
 void Cpu::LSR(){
     setFlag(C, (*operand) == 0x01);
-    (*operand) >> 1;
+    *operand = *operand >> 1;
     setFlag(Z, (*operand) == 0x00);
     setFlag(N, (*operand) == 0x80);
 }
@@ -511,9 +557,9 @@ void Cpu::SBC(){
     setFlag(C, tmp > 0xFF);
     setFlag(N, tmp & 0x80);
     setFlag(Z, (tmp & 0x00FF) == 0x0000);
-    if((acc & 0x80 == 0) && ((*operand) & 0x80 == 0) && (tmp & 0x0080 == 1)){
+    if(((acc & 0x80) == 0) && ((*operand & 0x80) == 0) && ((tmp & 0x0080) == 1)){
         setFlag(V, true);
-    }else if((acc & 0x80 == 1) && ((*operand) & 0x80 == 1) && (tmp & 0x0080 == 0)){
+    }else if(((acc & 0x80) == 1) && ((*operand & 0x80) == 1) && ((tmp & 0x0080) == 0)){
         setFlag(V, true);
     }else {
         setFlag(V, false);
@@ -534,15 +580,15 @@ void Cpu::SEI(){
 }
 
 void Cpu::STA(){
-    bus->write(acc, abs_addr);
+    write(acc, abs_addr);
 }
 
 void Cpu::STX(){
-    bus->write(x, abs_addr);
+    write(x, abs_addr);
 }
 
 void Cpu::STY(){
-    bus->write(y, abs_addr);
+    write(y, abs_addr);
 }
 
 void Cpu::TAX(){

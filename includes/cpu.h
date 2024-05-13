@@ -2,61 +2,70 @@
 #define CPU_H
 
 #include <cstdint>
-#include "bus.h"
+#include "m_bus.h"
 
-class Bus;
+class MBus;
+
+#define C 0 // Carry
+#define Z 1 // Zero
+#define I 2 // Disable IRQ Interrupts
+#define D 3 // Decimal Mode
+#define B 4 // BRK Command
+#define U 5 // Unused (ALWAYS SET)
+#define V 6 // Overflow
+#define N 7 // Negative
 
 class Cpu {
-    public:
-        Cpu(Bus* bus);
-
-        Bus* bus;
-
+    private:
         // Cpu Registers
         uint8_t x = 0; // X Register
         uint8_t y = 0; // Y Register
         uint8_t acc = 0; // Accumulator
         uint16_t pc; // Program Counter
         uint16_t sp = 0x01FD; // Stack Pointer
+        uint8_t sr = 0x00 | 0x01 << U; // Status Register
 
-        #define C 0
-        #define Z 1
-        #define I 2
-        #define D 3
-        #define B 4
-        #define U 5
-        #define V 6
-        #define N 7
-        /* 8 bit word representing the flags (Status Register)
-             Positions:
-                0: Carry
-                1: Zero
-                2: IRQ Disable Interrupt
-                3: Decimal Mode
-                4: BRK Command
-                5: Unused (always set)
-                6: Overflow
-                7: Negative
-        */
-        uint8_t sr = 0x00 | 0x01 << U;
-
-        void setFlag(uint8_t pos, bool val);
-        uint8_t getFlag(uint8_t pos);
-
+        // CPU Vars
         uint8_t cycles = 0, opcode;
         uint8_t* operand;
         uint16_t abs_addr;
 
-        uint8_t fetch_opcode(uint16_t addr);
-        void branch();
+        // CPU read and write to main bus
+        uint8_t* read(uint16_t addr);
+        void write(uint8_t data, uint16_t addr);
 
+        // Get opcode from cpu_mem
+        uint8_t fetch_opcode(uint16_t addr);
+
+        // Pop and push to cpu_mem stack on page 0x01
         void push_stk(uint8_t byte);
         uint8_t pop_stk();
 
-        void exec_ins();
-        void reset();
-        void irq();
-        void nmi();
+        // Used when a branch operation is called
+        void branch();
+
+        void reset(); // Reset CPU state
+        void irq(); // Called for IRQ Interrupts
+        void nmi(); // Called for NMI Interrupts
+    public:
+        // Connect CPU to Main Bus
+        MBus* m_bus;
+        Cpu(MBus* m_bus);
+
+        // Set and Get flags from SR
+        void setFlag(uint8_t pos, bool val);
+        uint8_t getFlag(uint8_t pos);
+
+        // Getters for registers
+        uint8_t getX(), getY(), getAcc(), getSr();
+        uint16_t getSp(), getPc();
+
+        uint8_t get_cyc(); // Getter for cycles
+
+        // Set Program Counter Register
+        void setPc(uint16_t pc);
+
+        void exec_ins(); // Execute an instruction
 
         // Addressing Modes
         void ACC(), IMM(), ABS(), ABS_X(), ABS_Y(), ZP(), ZP_X();
